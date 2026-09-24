@@ -41,4 +41,4 @@ with gr.Blocks(theme=gr.themes.Monochrome()) as app:
 
 # share=True is the magic command that generates the public internet link
 if __name__ == "__main__":
-    app.launch()
+    app.launch(server_name="0.0.0.0", server_port=port)
