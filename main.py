@@ -1,7 +1,8 @@
 import gradio as gr
 import os
+from datetime import datetime
 
-# Store private message histories: key is sorted pair tuple, e.g. ("akash", "bob")
+# Store private message histories
 conversations = {}
 
 def get_channel_key(user_a, user_b):
@@ -21,13 +22,18 @@ def send_direct_message(my_id, target_id, message):
         
     if message.strip():
         sender_clean = my_id.strip()
-        conversations[key].append(f"[{sender_clean}]: {message.strip()}")
+        
+        # Get the current time in AM/PM format
+        time_str = datetime.now().strftime("%I:%M %p") 
+        
+        # Format the message to include the timestamp
+        conversations[key].append(f"[{time_str}] {sender_clean}: {message.strip()}")
     
     return "\n".join(conversations[key]), ""
 
 def load_conversation(my_id, target_id):
     if not my_id.strip() or not target_id.strip():
-        return "Enter both IDs above and hit Refresh to view the chat."
+        return "Waiting for IDs..."
     
     key = get_channel_key(my_id, target_id)
     if key not in conversations or not conversations[key]:
@@ -44,7 +50,7 @@ with gr.Blocks(theme=gr.themes.Monochrome()) as app:
         target_id_input = gr.Textbox(label="Chat With (Friend's ID)", placeholder="e.g. bob")
     
     chat_display = gr.Textbox(
-        label="Private Conversation",
+        label="Private Conversation (Auto-updates every 2 seconds)",
         lines=14,
         interactive=False,
         placeholder="Conversation history will appear here..."
@@ -53,10 +59,8 @@ with gr.Blocks(theme=gr.themes.Monochrome()) as app:
     with gr.Row():
         msg_input = gr.Textbox(label="Message", placeholder="Type a message...", scale=4)
         send_btn = gr.Button("Send", variant="primary", scale=1)
-        
-    refresh_btn = gr.Button("🔄 Refresh / Load Chat")
 
-    # Wire actions
+    # Wire actions for sending
     send_btn.click(
         send_direct_message,
         inputs=[my_id_input, target_id_input, msg_input],
@@ -67,12 +71,16 @@ with gr.Blocks(theme=gr.themes.Monochrome()) as app:
         inputs=[my_id_input, target_id_input, msg_input],
         outputs=[chat_display, msg_input]
     )
-    refresh_btn.click(
+    
+    # AUTO-LOAD: Runs the load_conversation function silently every 2 seconds
+    app.load(
         load_conversation,
         inputs=[my_id_input, target_id_input],
-        outputs=[chat_display]
+        outputs=[chat_display],
+        every=2
     )
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
-    app.launch(server_name="0.0.0.0", server_port=port)
+    # Queue is required for the 'every' argument to work in Gradio
+    app.queue().launch(server_name="0.0.0.0", server_port=port)
